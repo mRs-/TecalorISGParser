@@ -16,26 +16,58 @@
  *
  */
 
+// Class definition to work with a remote host
+class Configuration {
+    private $serverAddress;
 
-function sonderzeichen($string)
-{
-    $search = array("Ä", "Ö", "Ü", "ä", "ö", "ü", "ß", "´");
-    $replace = array("Ae", "Oe", "Ue", "ae", "oe", "ue", "ss", "");
-    return str_replace($search, $replace, $string);
+    function __construct($serverAddress = 'http://192.168.178.52/?s=1,0') {
+        parent::__construct();
+        $this->serverAddress = $serverAddress;
+    }
+
+    function getServerAddress() {
+        return $serverAddress;
+    }
 }
 
+class Connection {
 
+    private $remoteSource;
 
-/*
- * Change this to your local IP adress of your ISG
- */
+    function __construct($remoteSource) {
+        parent::__construct();
+        $this->remoteSource = $remoteSource;
+    }
 
-$configuration = array(
-    'srv_address' => 'http://192.168.178.52/?s=1,0'
-);
+    function fetchRemoteData() {
+        $fetchedData = file_get_contents($configuration->getServerAddress());
+        return $fetchedData;
+    }
+}
 
+class UmlautsReplacer {
+    static $replaceKeysWithValues = array(
+        'Ä' => 'Ae',
+        'Ö' => 'Oe',
+        'Ü' => 'Ue',
+        'ä' => 'ae',
+        'ü' => 'ue',
+        'ß' => 'ss',
+        '´' => ''
+    );
 
-$return = file_get_contents($configuration['srv_address']);
+    static function convert($input) {
+        $output = str_replace(array_keys(UmlautsReplacer::replaceKeysWithValues), array_values(UmlautsReplacer::replaceKeysWithValues), $input);
+
+        return $output;
+    }
+}
+
+// Business Logic starts here
+
+$configuration = new Configuration();
+$connection = new Connection($configuration->getServerAddress());
+$return = $connection->fetchRemoteData();
 
 $start = strpos($return,"HEIZUNG</th></tr>");
 $ende = strpos($return, "STATUS-OK</td>");
@@ -69,7 +101,7 @@ foreach($zeilen as $zeile)
     //WO ist der Titel zu Ende?
     
     $ende_titel = strpos($zeile,"</th>");
-    $gruppe = strtolower(sonderzeichen(substr($zeile,0, $ende_titel)));
+    $gruppe = strtolower(UmlautsReplacer::convert(substr($zeile,0, $ende_titel)));
 
 
     $group_string = substr($zeile,$ende_titel+9);
@@ -107,5 +139,3 @@ header('Content-Type: application/json');
 
 echo json_encode($all_data);
 
-
-?>
